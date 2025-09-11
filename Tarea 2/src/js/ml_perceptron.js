@@ -143,6 +143,16 @@ try{
 }
 }
 
+async function onShowChart(){
+const img = $('historyChart')
+img.style.display = 'none'
+const url = '/api/mlp/plot_history.png'
+const bust = `__t=${Date.now()}`
+img.src = `${url}?${bust}`
+img.onload = ()=>{ img.style.display = 'block' }
+img.onerror = ()=>{ $('chartWrap').textContent = 'Error loading chart (did you train first?)' }
+}
+
 window.addEventListener('DOMContentLoaded', ()=>{
 $('btnCreate').addEventListener('click', onCreate)
 $('fileMLP').addEventListener('change', onPickMLPFile)
@@ -152,4 +162,5 @@ $('btnContinue').addEventListener('click', onContinue)
 $('btnEvalOneMLP').addEventListener('click', onEvalOneMLP)
 $('btnEvalFileMLP').addEventListener('click', onEvalFileMLP)
 $('btnSave').addEventListener('click', onSave)
+$('btnShowChart').addEventListener('click', onShowChart)
 })

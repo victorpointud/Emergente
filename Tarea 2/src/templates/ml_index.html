@@ -15,6 +15,7 @@
 <main class="container">
     <section class="card">
     <h2>1. Create or load network</h2>
+
     <h3>1.1 Create new</h3>
     <div class="grid">
         <div class="field"><label for="nIn">Inputs</label><input id="nIn" type="number" value="3" /></div>
@@ -59,6 +60,14 @@
     </div>
     <button id="btnTrain" class="btn">Train</button>
     <div id="trainLog" class="preview table-wrap"></div>
+
+    <div style="margin-top:10px" class="grid">
+        <div class="field"><button id="btnShowChart" class="btn">Show training chart</button></div>
+    </div>
+    <div id="chartWrap" class="preview center">
+        <img id="historyChart" alt="Training chart will appear here" style="max-width:100%;height:auto;display:none" />
+    </div>
+
     <div style="margin-top:10px">
         <button id="btnContinue" class="btn btn-secondary">Continue training</button>
         <button id="btnSave" class="btn btn-secondary">Save network</button>
