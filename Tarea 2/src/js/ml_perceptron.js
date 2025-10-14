@@ -26,8 +26,15 @@ async function api(path, payload){
 }
 
 function toRowsFromCSVText(t){
-  const lines = t.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0)
-  return lines.map(line => parseCSVLine(line).map(Number))
+  const lines = t.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  const rows = [];
+  for(const line of lines){
+    const parts = parseCSVLine(line).map(v => Number(v));
+    if(parts.length === 0) continue;
+    if(parts.some(v => Number.isNaN(v))) continue;
+    rows.push(parts);
+  }
+  return rows;
 }
 
 function parseHiddenNeuronsSafe(text, nHidden){

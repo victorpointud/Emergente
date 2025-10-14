@@ -3,25 +3,25 @@ import io, json, math
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from functools import partial
 from pathlib import Path
-
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+
 ROOT = Path(__file__).resolve().parent
-WEB_ROOT = ROOT.parent / "src"  # ajusta si tu index está en otro lugar
-INDEX_URL = "/templates/mlp.html"
+WEB_ROOT = ROOT        
+INDEX_URL = "/src/templates/mlp.html"
 
 STATE = {
-    "sizes": None,      # [n_in, h1, ..., n_out]
-    "W": None,          # list of np.array (in_dim, out_dim)
-    "b": None,          # list of np.array (1, out_dim)
+    "sizes": None,     
+    "W": None,         
+    "b": None,          
     "act_hidden": "relu",
-    "act_out": None,    # "sigmoid" | "softmax"
-    "mu": None,         # (1, n_in)
-    "std": None,        # (1, n_in)
-    "history": [],      # list of {epoch, train_acc, test_acc}
+    "act_out": None,    
+    "mu": None,         
+    "std": None,        
+    "history": [],      
 }
 
 def zscore_fit(X):
@@ -87,18 +87,18 @@ def predict_classes(X):
     return np.argmax(out, axis=1)
 
 def bce_sigmoid_grad(A_last, Y):
-    # loss (scalar) and dZ (N,out)
+
     eps = 1e-12
     yhat = np.clip(A_last, eps, 1.0 - eps)
     loss = -np.mean(Y * np.log(yhat) + (1 - Y) * np.log(1 - yhat))
-    dZ = (A_last - Y)  # simplificación con salida sigmoide
+    dZ = (A_last - Y)  
     return loss, dZ
 
 def ce_softmax_grad(A_last, Y_onehot):
     eps = 1e-12
     yhat = np.clip(A_last, eps, 1.0 - eps)
     loss = -np.mean(np.sum(Y_onehot * np.log(yhat), axis=1))
-    dZ = (A_last - Y_onehot)  # simplif softmax+CE
+    dZ = (A_last - Y_onehot) 
     return loss, dZ
 
 def one_hot(y, C):
@@ -110,7 +110,6 @@ def accuracy(y_true, y_pred):
     return float((y_true == y_pred).mean())
 
 def ensure_model(sizes):
-    # inicializa W,b si no existen o si cambió el shape
     if STATE["sizes"] == sizes and STATE["W"] and STATE["b"]:
         return
     STATE["sizes"] = sizes
@@ -152,10 +151,8 @@ def save_config_json():
     return {"sizes": sizes, "layers": layers}
 
 def split_xy_if_needed(rows):
-    # rows: list[list[float]]
     if not rows or not isinstance(rows[0], list):
         raise ValueError("Invalid CSV rows.")
-    # combinado -> ultima columna = y
     X = [r[:-1] for r in rows]
     Y = [[r[-1]] for r in rows]
     return X, Y
@@ -207,7 +204,6 @@ class Handler(SimpleHTTPRequestHandler):
                 self._ok({"ok": True}); return
 
             if self.path == "/api/mlp/train":
-                # admite: X_train+Y_train, o un solo CSV combinado (llegará como rows en X_train y Y_train vacío)
                 Xtr = data.get("X_train", [])
                 Ytr = data.get("Y_train", [])
                 Xte = data.get("X_test", [])
@@ -217,7 +213,6 @@ class Handler(SimpleHTTPRequestHandler):
                 act_hidden = data.get("act_hidden", "relu").lower()
                 act_out_req = data.get("act_out", "").lower()
 
-                # si viniera combinado:
                 if Xtr and not Ytr:
                     Xtr, Ytr = split_xy_if_needed(Xtr)
                 if Xte and not Yte:
@@ -228,28 +223,23 @@ class Handler(SimpleHTTPRequestHandler):
                 Xte = np.array(Xte, dtype=np.float64) if Xte else None
                 yte = np.array(Yte, dtype=np.float64).reshape(-1) if Yte else None
 
-                # decide sizes si no hay modelo aún
                 if STATE["sizes"] is None:
                     n_in = Xtr.shape[1]
-                    # detecta binario vs multiclase por y
                     classes = int(np.max(ytr)) + 1
                     n_out = 1 if classes == 2 else classes
                     sizes = [n_in, max(8, n_in*2), n_out]
                     ensure_model(sizes)
 
-                # fuerza activación de salida válida
                 classes = int(np.max(ytr)) + 1
                 act_out = "sigmoid" if (STATE["sizes"][-1] == 1) else "softmax"
                 if STATE["sizes"][-1] > 1: act_out = "softmax"
                 STATE["act_hidden"] = act_hidden
                 STATE["act_out"] = act_out
 
-                # normalización con train
                 mu, std = zscore_fit(Xtr); STATE["mu"], STATE["std"] = mu, std
                 Xtr_n = zscore_apply(Xtr, mu, std)
                 Xte_n = zscore_apply(Xte, mu, std) if Xte is not None else None
 
-                # preparar etiquetas
                 if STATE["act_out"] == "sigmoid":
                     Ytr = ytr.reshape(-1,1)
                 else:
@@ -272,12 +262,10 @@ class Handler(SimpleHTTPRequestHandler):
                         dW = [None]*len(STATE["W"])
                         db = [None]*len(STATE["b"])
 
-                        # output
                         dA = dZL
                         dW[-1] = A[-2].T @ dA / xb.shape[0]
                         db[-1] = np.mean(dA, axis=0, keepdims=True)
 
-                        # hidden
                         for l in range(len(STATE["W"]) - 2, -1, -1):
                             dA_prev = dA @ STATE["W"][l+1].T
                             dZ = dA_prev * dactivation(A[l+1], STATE["act_hidden"])
@@ -285,12 +273,10 @@ class Handler(SimpleHTTPRequestHandler):
                             db[l] = np.mean(dZ, axis=0, keepdims=True)
                             dA = dZ
 
-                        # step
                         for l in range(len(STATE["W"])):
                             STATE["W"][l] -= lr * dW[l]
                             STATE["b"][l] -= lr * db[l]
 
-                    # métricas
                     ytr_pred = predict_classes(Xtr_n)
                     acc_tr = accuracy(ytr.astype(int), ytr_pred.astype(int))
                     acc_te = None
@@ -338,12 +324,14 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(payload).encode("utf-8"))
 
-def main(port=8000):
+def main(port=9000):
     h = partial(Handler, directory=str(WEB_ROOT))
     httpd = ThreadingHTTPServer(("127.0.0.1", port), h)
     print(f"Serving {WEB_ROOT} at http://127.0.0.1:{port}{INDEX_URL}")
-    try: httpd.serve_forever()
-    except KeyboardInterrupt: pass
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
 
 if __name__ == "__main__":
     main()
