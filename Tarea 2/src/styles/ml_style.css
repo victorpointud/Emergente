@@ -64,6 +64,24 @@ h2{
 }
 h3{margin:8px 0 10px;font-size:16px;color:#d7cab0;letter-spacing:.2px}
 
+.graph-grid { display:grid; grid-template-columns:1fr; gap:18px; }
+.graph-box{
+  position:relative; width:100%; max-width:680px; min-height:260px;
+  border-radius:16px; border:1px solid var(--border); background:#11141a; box-shadow:var(--shadow);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.graph-box img{ display:none; max-width:100%; height:auto; }
+.graph-msg{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:#a7adb8; font-size:14px; padding:10px; text-align:center;
+}
+.graph-loading::after{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(110deg, transparent 0 35%, rgba(255,255,255,.06) 50%, transparent 65% 100%);
+  background-size:200% 100%; animation:shine 1.1s linear infinite;
+}
+@keyframes shine{ to{ background-position:-200% 0; } }
+
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);align-items:end}
 @media (max-width: 840px){.grid{grid-template-columns:1fr}}
 

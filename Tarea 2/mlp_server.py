@@ -8,20 +8,22 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-
 ROOT = Path(__file__).resolve().parent
-WEB_ROOT = ROOT        
+WEB_ROOT = ROOT 
 INDEX_URL = "/src/templates/mlp.html"
 
 STATE = {
-    "sizes": None,     
-    "W": None,         
-    "b": None,          
+    "sizes": None,
+    "W": None,
+    "b": None,
     "act_hidden": "relu",
-    "act_out": None,    
-    "mu": None,         
-    "std": None,        
-    "history": [],      
+    "act_out": None,
+    "mu": None,
+    "std": None,
+    "history": [],  # [{epoch, train_acc, test_acc, loss}]
+    # buffers para plots
+    "last_train_X": None, "last_train_y": None, "last_train_pred": None,
+    "last_test_X":  None, "last_test_y":  None, "last_test_pred":  None,
 }
 
 def zscore_fit(X):
@@ -33,8 +35,7 @@ def zscore_apply(X, mu, std):
     return (X - mu) / (std + 1e-12)
 
 def activation(a, kind):
-    if kind == "relu":
-        return np.maximum(0.0, a)
+    if kind == "relu":     return np.maximum(0.0, a)
     if kind == "sigmoid":
         out = np.empty_like(a)
         pos = a >= 0
@@ -42,21 +43,15 @@ def activation(a, kind):
         ez = np.exp(a[~pos])
         out[~pos] = ez / (1.0 + ez)
         return out
-    if kind == "tanh":
-        return np.tanh(a)
-    if kind == "linear":
-        return a
+    if kind == "tanh":     return np.tanh(a)
+    if kind == "linear":   return a
     raise ValueError("Unknown activation")
 
 def dactivation(a, kind):
-    if kind == "relu":
-        return (a > 0).astype(a.dtype)
-    if kind == "sigmoid":
-        return a * (1.0 - a)
-    if kind == "tanh":
-        return 1.0 - np.power(a, 2.0)
-    if kind == "linear":
-        return np.ones_like(a)
+    if kind == "relu":     return (a > 0).astype(a.dtype)
+    if kind == "sigmoid":  return a * (1.0 - a)
+    if kind == "tanh":     return 1.0 - np.power(a, 2.0)
+    if kind == "linear":   return np.ones_like(a)
     raise ValueError("Unknown dactivation")
 
 def softmax(z):
@@ -65,17 +60,13 @@ def softmax(z):
     return ez / (np.sum(ez, axis=1, keepdims=True) + 1e-12)
 
 def forward(X):
-    A = [X]
-    Z = []
+    A = [X]; Z = []
     for l in range(len(STATE["W"]) - 1):
         z = A[-1] @ STATE["W"][l] + STATE["b"][l]
         a = activation(z, STATE["act_hidden"])
         Z.append(z); A.append(a)
     zL = A[-1] @ STATE["W"][-1] + STATE["b"][-1]
-    if STATE["act_out"] == "sigmoid":
-        aL = activation(zL, "sigmoid")
-    else:
-        aL = softmax(zL)
+    aL = activation(zL, "sigmoid") if STATE["act_out"] == "sigmoid" else softmax(zL)
     Z.append(zL); A.append(aL)
     return Z, A
 
@@ -87,18 +78,17 @@ def predict_classes(X):
     return np.argmax(out, axis=1)
 
 def bce_sigmoid_grad(A_last, Y):
-
     eps = 1e-12
     yhat = np.clip(A_last, eps, 1.0 - eps)
     loss = -np.mean(Y * np.log(yhat) + (1 - Y) * np.log(1 - yhat))
-    dZ = (A_last - Y)  
+    dZ = (A_last - Y)  # derivada simplificada
     return loss, dZ
 
 def ce_softmax_grad(A_last, Y_onehot):
     eps = 1e-12
     yhat = np.clip(A_last, eps, 1.0 - eps)
     loss = -np.mean(np.sum(Y_onehot * np.log(yhat), axis=1))
-    dZ = (A_last - Y_onehot) 
+    dZ = (A_last - Y_onehot)
     return loss, dZ
 
 def one_hot(y, C):
@@ -113,15 +103,14 @@ def ensure_model(sizes):
     if STATE["sizes"] == sizes and STATE["W"] and STATE["b"]:
         return
     STATE["sizes"] = sizes
-    STATE["W"] = []
-    STATE["b"] = []
+    STATE["W"], STATE["b"] = [], []
     rng = np.random.default_rng(42)
     for l in range(len(sizes)-1):
         fan_in, fan_out = sizes[l], sizes[l+1]
         limit = math.sqrt(6.0 / (fan_in + fan_out))
         STATE["W"].append(rng.uniform(-limit, limit, size=(fan_in, fan_out)))
         STATE["b"].append(np.zeros((1, fan_out), dtype=np.float64))
-    STATE["history"] = []
+    STATE["history"].clear()
 
 def apply_config_json(payload):
     sizes = payload.get("sizes")
@@ -132,12 +121,10 @@ def apply_config_json(payload):
     if layers:
         if len(layers) != len(sizes) - 1:
             raise ValueError("layers length mismatch.")
-        W, B = [], []
         for li, lay in enumerate(layers):
             Wflat = np.array(lay["W"], dtype=np.float64)
             b = np.array(lay["b"], dtype=np.float64).reshape(1, sizes[li+1])
             W = Wflat.reshape(sizes[li], sizes[li+1])
-            W, b = W, b
             STATE["W"][li] = W
             STATE["b"][li] = b
 
@@ -157,28 +144,104 @@ def split_xy_if_needed(rows):
     Y = [[r[-1]] for r in rows]
     return X, Y
 
+# --------- helpers de gráficos ---------
+def _fig_to_png_bytes():
+    buf = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format="png", bbox_inches="tight")
+    buf.seek(0)
+    return buf.getvalue()
+
+def plot_dataset(X, y, title):
+    plt.clf()
+    if X.shape[1] >= 3:
+        ax = plt.axes(projection="3d")
+        ax.scatter(X[:,0], X[:,1], X[:,2], c=y, cmap="viridis", edgecolors="k", s=28)
+        ax.set_xlabel("x1"); ax.set_ylabel("x2"); ax.set_zlabel("x3")
+    else:
+        plt.scatter(X[:,0], X[:,1], c=y, cmap="viridis", edgecolors="k", s=28)
+        plt.xlabel("x1"); plt.ylabel("x2")
+    plt.title(title)
+    return _fig_to_png_bytes()
+
+def plot_correct_incorrect(X, y_true, y_pred, title):
+    ok = (y_true == y_pred)
+    plt.clf()
+    if X.shape[1] >= 3:
+        ax = plt.axes(projection="3d")
+        ax.scatter(X[ok,0],  X[ok,1],  X[ok,2],  c="tab:green", s=28, label="OK")
+        ax.scatter(X[~ok,0], X[~ok,1], X[~ok,2], c="tab:red",   s=28, label="Error")
+        ax.set_xlabel("x1"); ax.set_ylabel("x2"); ax.set_zlabel("x3")
+    else:
+        plt.scatter(X[ok,0],  X[ok,1],  c="tab:green", s=28, label="OK", edgecolors="k")
+        plt.scatter(X[~ok,0], X[~ok,1], c="tab:red",   s=28, label="Error", edgecolors="k")
+        plt.xlabel("x1"); plt.ylabel("x2")
+    plt.legend()
+    plt.title(title)
+    return _fig_to_png_bytes()
+
+def plot_confusion(y_true, y_pred, title="Confusion matrix"):
+    # sin sklearn
+    classes = int(max(np.max(y_true), np.max(y_pred))) + 1
+    cm = np.zeros((classes, classes), dtype=int)
+    for t, p in zip(y_true.astype(int), y_pred.astype(int)):
+        cm[t, p] += 1
+    plt.clf()
+    plt.matshow(cm, cmap="Blues")
+    plt.title(title); plt.xlabel("Predicted"); plt.ylabel("True")
+    for (i, j), v in np.ndenumerate(cm):
+        plt.text(j, i, str(v), ha="center", va="center")
+    return _fig_to_png_bytes()
+
+# --------------------------------------
+
 class Handler(SimpleHTTPRequestHandler):
+    # ---- GET: imágenes PNG ----
     def do_GET(self):
-        if self.path.startswith("/api/mlp/plot_history.png"):
+        p = self.path.split("?")[0]
+        if p == "/api/mlp/plot_history.png":
             if not STATE["history"]:
                 self.send_response(404); self.end_headers(); return
-            buf = io.BytesIO()
+            xs  = [h["epoch"] for h in STATE["history"]]
+            acc = [h["train_acc"] for h in STATE["history"]]
+            te  = [h["test_acc"] for h in STATE["history"] if h["test_acc"] is not None]
+            los = [h["loss"] for h in STATE["history"]]
             plt.clf()
-            xs = [h["epoch"] for h in STATE["history"]]
-            tr = [h["train_acc"] for h in STATE["history"]]
-            te = [h["test_acc"] for h in STATE["history"] if h["test_acc"] is not None]
-            plt.plot(xs, tr, label="train acc")
-            if te: plt.plot(xs[:len(te)], te, label="test acc")
-            plt.xlabel("epoch"); plt.ylabel("accuracy"); plt.title("Training history"); plt.legend()
-            plt.tight_layout()
-            plt.savefig(buf, format="png"); buf.seek(0)
-            self.send_response(200)
-            self.send_header("Content-Type", "image/png")
-            self.end_headers()
-            self.wfile.write(buf.read())
-            return
+            plt.plot(xs, acc, label="train acc")
+            if te:
+                plt.plot(xs[:len(te)], te, label="test acc")
+            plt.plot(xs, los, label="loss")
+            plt.xlabel("epoch"); plt.ylabel("metric"); plt.title("History")
+            plt.legend()
+            png = _fig_to_png_bytes()
+            self._png(png); return
+
+        # dataset & pred plots
+        if p == "/api/mlp/plot_data_train.png" and STATE["last_train_X"] is not None:
+            png = plot_dataset(STATE["last_train_X"], STATE["last_train_y"], "Train dataset")
+            self._png(png); return
+        if p == "/api/mlp/plot_data_test.png" and STATE["last_test_X"] is not None:
+            png = plot_dataset(STATE["last_test_X"], STATE["last_test_y"], "Test dataset")
+            self._png(png); return
+        if p == "/api/mlp/plot_pred_train.png" and STATE["last_train_pred"] is not None:
+            png = plot_correct_incorrect(STATE["last_train_X"], STATE["last_train_y"], STATE["last_train_pred"], "Train: correct vs error")
+            self._png(png); return
+        if p == "/api/mlp/plot_pred_test.png" and STATE["last_test_pred"] is not None:
+            png = plot_correct_incorrect(STATE["last_test_X"], STATE["last_test_y"], STATE["last_test_pred"], "Test: correct vs error")
+            self._png(png); return
+        if p == "/api/mlp/plot_confusion.png" and STATE["last_test_pred"] is not None:
+            png = plot_confusion(STATE["last_test_y"], STATE["last_test_pred"])
+            self._png(png); return
+
         return super().do_GET()
 
+    def _png(self, png_bytes):
+        self.send_response(200)
+        self.send_header("Content-Type", "image/png")
+        self.end_headers()
+        self.wfile.write(png_bytes)
+
+    # ---- POST: API ----
     def do_POST(self):
         try:
             n = int(self.headers.get("Content-Length","0"))
@@ -195,28 +258,24 @@ class Handler(SimpleHTTPRequestHandler):
                     raise ValueError("hidden_neurons length must match n_hidden")
                 sizes = [n_in] + [int(max(1,h)) for h in hs] + [n_out]
                 ensure_model(sizes)
-                STATE["history"] = []
+                STATE["history"].clear()
                 self._ok({"sizes": sizes}); return
 
             if self.path == "/api/mlp/apply_config":
                 apply_config_json(data)
-                STATE["history"] = []
+                STATE["history"].clear()
                 self._ok({"ok": True}); return
 
             if self.path == "/api/mlp/train":
-                Xtr = data.get("X_train", [])
-                Ytr = data.get("Y_train", [])
-                Xte = data.get("X_test", [])
-                Yte = data.get("Y_test", [])
+                Xtr = data.get("X_train", []); Ytr = data.get("Y_train", [])
+                Xte = data.get("X_test",  []); Yte = data.get("Y_test",  [])
                 epochs = int(data.get("epochs", 50))
                 lr = float(data.get("lr", 0.05))
                 act_hidden = data.get("act_hidden", "relu").lower()
-                act_out_req = data.get("act_out", "").lower()
+                _ = data.get("act_out", "").lower()  # ignorado: se decide por salidas
 
-                if Xtr and not Ytr:
-                    Xtr, Ytr = split_xy_if_needed(Xtr)
-                if Xte and not Yte:
-                    Xte, Yte = split_xy_if_needed(Xte)
+                if Xtr and not Ytr: Xtr, Ytr = split_xy_if_needed(Xtr)
+                if Xte and not Yte: Xte, Yte = split_xy_if_needed(Xte)
 
                 Xtr = np.array(Xtr, dtype=np.float64)
                 ytr = np.array(Ytr, dtype=np.float64).reshape(-1)
@@ -227,30 +286,26 @@ class Handler(SimpleHTTPRequestHandler):
                     n_in = Xtr.shape[1]
                     classes = int(np.max(ytr)) + 1
                     n_out = 1 if classes == 2 else classes
-                    sizes = [n_in, max(8, n_in*2), n_out]
-                    ensure_model(sizes)
+                    ensure_model([n_in, max(8, n_in*2), n_out])
 
-                classes = int(np.max(ytr)) + 1
-                act_out = "sigmoid" if (STATE["sizes"][-1] == 1) else "softmax"
-                if STATE["sizes"][-1] > 1: act_out = "softmax"
                 STATE["act_hidden"] = act_hidden
-                STATE["act_out"] = act_out
+                STATE["act_out"] = "sigmoid" if STATE["sizes"][-1] == 1 else "softmax"
 
                 mu, std = zscore_fit(Xtr); STATE["mu"], STATE["std"] = mu, std
                 Xtr_n = zscore_apply(Xtr, mu, std)
                 Xte_n = zscore_apply(Xte, mu, std) if Xte is not None else None
 
-                if STATE["act_out"] == "sigmoid":
-                    Ytr = ytr.reshape(-1,1)
-                else:
-                    Ytr = one_hot(ytr.astype(int), STATE["sizes"][-1] if STATE["sizes"][-1]>1 else classes)
+                Ytr_mat = ytr.reshape(-1,1) if STATE["act_out"]=="sigmoid" else one_hot(ytr.astype(int), STATE["sizes"][-1])
 
                 batch = max(1, min(64, Xtr_n.shape[0]//4))
                 steps = max(1, Xtr_n.shape[0] // batch)
+                STATE["history"].clear()
 
                 for ep in range(1, epochs+1):
                     idx = np.random.permutation(Xtr_n.shape[0])
-                    Xs = Xtr_n[idx]; Ys = Ytr[idx]
+                    Xs, Ys = Xtr_n[idx], Ytr_mat[idx]
+                    loss_epoch = 0.0
+
                     for s in range(steps):
                         xb = Xs[s*batch:(s+1)*batch]
                         yb = Ys[s*batch:(s+1)*batch]
@@ -259,9 +314,9 @@ class Handler(SimpleHTTPRequestHandler):
                             loss, dZL = bce_sigmoid_grad(A[-1], yb)
                         else:
                             loss, dZL = ce_softmax_grad(A[-1], yb)
-                        dW = [None]*len(STATE["W"])
-                        db = [None]*len(STATE["b"])
+                        loss_epoch += loss
 
+                        dW = [None]*len(STATE["W"]); db = [None]*len(STATE["b"])
                         dA = dZL
                         dW[-1] = A[-2].T @ dA / xb.shape[0]
                         db[-1] = np.mean(dA, axis=0, keepdims=True)
@@ -277,13 +332,18 @@ class Handler(SimpleHTTPRequestHandler):
                             STATE["W"][l] -= lr * dW[l]
                             STATE["b"][l] -= lr * db[l]
 
+                    loss_epoch /= steps
+
                     ytr_pred = predict_classes(Xtr_n)
                     acc_tr = accuracy(ytr.astype(int), ytr_pred.astype(int))
                     acc_te = None
                     if Xte_n is not None and yte is not None and yte.size > 0:
                         yte_pred = predict_classes(Xte_n)
                         acc_te = accuracy(yte.astype(int), yte_pred.astype(int))
-                    STATE["history"].append({"epoch": len(STATE["history"])+1, "train_acc":acc_tr, "test_acc":acc_te})
+                        STATE["last_test_X"], STATE["last_test_y"], STATE["last_test_pred"] = Xte_n, yte.astype(int), yte_pred.astype(int)
+
+                    STATE["last_train_X"], STATE["last_train_y"], STATE["last_train_pred"] = Xtr_n, ytr.astype(int), ytr_pred.astype(int)
+                    STATE["history"].append({"epoch": ep, "train_acc": acc_tr, "test_acc": acc_te, "loss": float(loss_epoch)})
 
                 self._ok({"history": STATE["history"]}); return
 
@@ -297,17 +357,23 @@ class Handler(SimpleHTTPRequestHandler):
 
             if self.path == "/api/mlp/eval_file":
                 rows = data.get("rows", [])
+                X = []; y_true = []
                 out = []
                 for i, r in enumerate(rows, start=1):
                     try:
-                        x = np.array(r, dtype=np.float64).reshape(1,-1)
-                        mu, std = STATE["mu"], STATE["std"]
-                        x = zscore_apply(x, mu, std) if (mu is not None and std is not None) else x
-                        _, A = forward(x)
-                        y = A[-1].reshape(-1).tolist()
-                        out.append({"idx": i, "x": r, "y": y, "err": ""})
+                        *feat, lab = r
+                        X.append(feat); y_true.append(int(lab))
                     except Exception as e:
                         out.append({"idx": i, "x": r, "y": None, "err": str(e)})
+                if X:
+                    X = np.array(X, dtype=np.float64)
+                    y_true = np.array(y_true, dtype=int)
+                    mu, std = STATE["mu"], STATE["std"]
+                    Xn = zscore_apply(X, mu, std) if (mu is not None and std is not None) else X
+                    y_pred = predict_classes(Xn)
+                    STATE["last_test_X"], STATE["last_test_y"], STATE["last_test_pred"] = Xn, y_true, y_pred
+                    for i in range(len(X)):
+                        out.append({"idx": i+1, "x": rows[i], "y": int(y_pred[i]), "err": ""})
                 self._ok({"results": out}); return
 
             if self.path == "/api/mlp/save":
@@ -324,14 +390,12 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(payload).encode("utf-8"))
 
-def main(port=9000):
+def main(port=9000):  # pediste 9000
     h = partial(Handler, directory=str(WEB_ROOT))
     httpd = ThreadingHTTPServer(("127.0.0.1", port), h)
     print(f"Serving {WEB_ROOT} at http://127.0.0.1:{port}{INDEX_URL}")
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
+    try: httpd.serve_forever()
+    except KeyboardInterrupt: pass
 
 if __name__ == "__main__":
     main()
