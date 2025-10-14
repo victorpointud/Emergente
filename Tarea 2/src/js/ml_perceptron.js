@@ -1,11 +1,7 @@
-// src/js/ml_perceptron.js
-// UI helpers
+
 let mlpConfigText = null;
 const $ = (id) => document.getElementById(id);
 
-// -------------------------
-// Utils (CSV / files / API)
-// -------------------------
 function parseCSVLine(line){
   return line.split(',').map(s => s.trim()).filter(s => s.length > 0);
 }
@@ -75,9 +71,7 @@ function splitXYFromCombined(rows){
   return { X, Y };
 }
 
-// -------------------------
-// Create / Load MLP
-// -------------------------
+
 async function onCreate(){
   const n_in = Math.max(1, parseInt($('nIn').value, 10) || 1);
   const n_out = Math.max(1, parseInt($('nOut').value, 10) || 1);
@@ -88,7 +82,7 @@ async function onCreate(){
 
   const resp = await api('/api/mlp/create', { n_in, n_out, n_hidden, hidden_neurons: hiddenNeurons });
   $('createPreview').textContent = `Created. Sizes: [${resp.sizes.join(', ')}], Hidden: ${actHidden}, Output: ${actOut}`;
-  // Al crear, aún no hay gráficos: desactiva TEST/History
+
   toggleGraphButtons(false, false);
 }
 
@@ -109,7 +103,7 @@ async function onApplyMLP(){
     const cfg = JSON.parse(mlpConfigText);
     await api('/api/mlp/apply_config', cfg);
     $('mlpPreview').textContent = `Applied. Sizes: [${cfg.sizes.join(', ')}]`;
-    // Config aplicada: aún no hay history
+
     toggleGraphButtons(false, false);
     clearGraphs();
   }catch(err){
@@ -121,9 +115,6 @@ function actPair(){
   return { act_hidden: $('actHidden').value, act_out: $('actOut').value };
 }
 
-// -------------------------
-// Train / Continue
-// -------------------------
 async function onTrain(){
   try{
     const { act_hidden } = actPair();
@@ -166,7 +157,6 @@ async function onTrain(){
       epochs, lr, act_hidden, act_out
     });
 
-    // Tabla de history
     const hist = resp.history || [];
     let html = '<table><thead><tr><th>Epoch</th><th>Train Acc</th><th>Test Acc</th></tr></thead><tbody>';
     for(const h of hist){
@@ -177,7 +167,6 @@ async function onTrain(){
     html += '</tbody></table>';
     $('trainLog').innerHTML = html;
 
-    // Habilitar botones de gráficos:
     const canTrainPlots = hist.length > 0;
     const canTestPlots  = (Xte && Xte.length > 0) || (Yte && Yte.length > 0);
     toggleGraphButtons(canTrainPlots, canTestPlots);
@@ -191,9 +180,6 @@ async function onContinue(){
   return onTrain();
 }
 
-// -------------------------
-// Evaluate
-// -------------------------
 function onEvalOneMLP(){
   const xTxt = $('inputVec').value.trim();
   if(!xTxt){ $('oneOutMLP').textContent = 'Enter a vector.'; return; }
@@ -220,16 +206,12 @@ async function onEvalFileMLP(){
     html += '</tbody></table>';
     $('manyOutMLP').innerHTML = html;
 
-    // Al evaluar archivo (test), ya puedes ver gráficos de TEST
     toggleGraphButtons(true, true);
   }catch(e){
     $('manyOutMLP').textContent = `Error: ${e.message}`;
   }
 }
 
-// -------------------------
-// Save config
-// -------------------------
 async function onSave(){
   try{
     const obj = await api('/api/mlp/save', {});
@@ -247,9 +229,6 @@ async function onSave(){
   }
 }
 
-// -------------------------
-// Graphs (robustos)
-// -------------------------
 function setBoxState(boxId, imgId, msgId, state, text = ""){
   const box = $(boxId), img = $(imgId), msg = $(msgId);
   if (!box || !img || !msg) return;
@@ -275,7 +254,6 @@ function clearGraphs(){
   setBoxState("boxPred", "imgPred", "msgPred", "error", "No plot yet.");
   setBoxState("boxConf", "imgConf", "msgConf", "error", "Open TEST graphs to see confusion matrix");
   setBoxState("boxHist", "imgHistory2", "msgHist", "error", "No history yet.");
-  // limpia objectURL si quedó alguno
   for (const id of ["imgData","imgPred","imgConf","imgHistory2"]){
     const img = $(id);
     if (img && img.dataset && img.dataset.url){
@@ -299,13 +277,11 @@ async function loadPNGInto(url, boxId, imgId, msgId){
     const blob = await res.blob();
     const img = $(imgId);
 
-    // limpia objectURL previo si existía
     if (img.dataset.url) { URL.revokeObjectURL(img.dataset.url); delete img.dataset.url; }
 
     const objURL = URL.createObjectURL(blob);
     img.onload = () => {
       setBoxState(boxId, imgId, msgId, "ok");
-      // revoca más tarde para no romper Safari
       setTimeout(() => {
         URL.revokeObjectURL(objURL);
         if (img.dataset.url === objURL) delete img.dataset.url;
@@ -353,11 +329,9 @@ function toggleGraphButtons(canTrainPlots, canTestPlots){
   if (bH) bH.disabled = !canTrainPlots;
 }
 
-// -------------------------
-// Init
-// -------------------------
+
 window.addEventListener('DOMContentLoaded', () => {
-  // Actions
+
   $('btnCreate')?.addEventListener('click', onCreate);
   $('fileMLP')?.addEventListener('change', onPickMLPFile);
   $('btnApplyMLP')?.addEventListener('click', onApplyMLP);
@@ -367,12 +341,10 @@ window.addEventListener('DOMContentLoaded', () => {
   $('btnEvalFileMLP')?.addEventListener('click', onEvalFileMLP);
   $('btnSave')?.addEventListener('click', onSave);
 
-  // Graph buttons
   $('btnPlotTrain')?.addEventListener('click', onPlotTrain);
   $('btnPlotTest')?.addEventListener('click', onPlotTest);
   $('btnPlotHistory')?.addEventListener('click', onPlotHistory);
 
-  // Estado inicial de gráficos y botones
   clearGraphs();
   toggleGraphButtons(false, false);
 });

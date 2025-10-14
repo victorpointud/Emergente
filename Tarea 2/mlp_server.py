@@ -1,4 +1,3 @@
-# src/mlp_server.py
 import io, json, math
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from functools import partial
@@ -20,8 +19,7 @@ STATE = {
     "act_out": None,
     "mu": None,
     "std": None,
-    "history": [],  # [{epoch, train_acc, test_acc, loss}]
-    # buffers para plots
+    "history": [],  
     "last_train_X": None, "last_train_y": None, "last_train_pred": None,
     "last_test_X":  None, "last_test_y":  None, "last_test_pred":  None,
 }
@@ -81,7 +79,7 @@ def bce_sigmoid_grad(A_last, Y):
     eps = 1e-12
     yhat = np.clip(A_last, eps, 1.0 - eps)
     loss = -np.mean(Y * np.log(yhat) + (1 - Y) * np.log(1 - yhat))
-    dZ = (A_last - Y)  # derivada simplificada
+    dZ = (A_last - Y) 
     return loss, dZ
 
 def ce_softmax_grad(A_last, Y_onehot):
@@ -144,7 +142,6 @@ def split_xy_if_needed(rows):
     Y = [[r[-1]] for r in rows]
     return X, Y
 
-# --------- helpers de gráficos ---------
 def _fig_to_png_bytes():
     buf = io.BytesIO()
     plt.tight_layout()
@@ -181,7 +178,6 @@ def plot_correct_incorrect(X, y_true, y_pred, title):
     return _fig_to_png_bytes()
 
 def plot_confusion(y_true, y_pred, title="Confusion matrix"):
-    # sin sklearn
     classes = int(max(np.max(y_true), np.max(y_pred))) + 1
     cm = np.zeros((classes, classes), dtype=int)
     for t, p in zip(y_true.astype(int), y_pred.astype(int)):
@@ -193,10 +189,8 @@ def plot_confusion(y_true, y_pred, title="Confusion matrix"):
         plt.text(j, i, str(v), ha="center", va="center")
     return _fig_to_png_bytes()
 
-# --------------------------------------
 
 class Handler(SimpleHTTPRequestHandler):
-    # ---- GET: imágenes PNG ----
     def do_GET(self):
         p = self.path.split("?")[0]
         if p == "/api/mlp/plot_history.png":
@@ -216,7 +210,6 @@ class Handler(SimpleHTTPRequestHandler):
             png = _fig_to_png_bytes()
             self._png(png); return
 
-        # dataset & pred plots
         if p == "/api/mlp/plot_data_train.png" and STATE["last_train_X"] is not None:
             png = plot_dataset(STATE["last_train_X"], STATE["last_train_y"], "Train dataset")
             self._png(png); return
@@ -241,7 +234,6 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(png_bytes)
 
-    # ---- POST: API ----
     def do_POST(self):
         try:
             n = int(self.headers.get("Content-Length","0"))
@@ -272,7 +264,7 @@ class Handler(SimpleHTTPRequestHandler):
                 epochs = int(data.get("epochs", 50))
                 lr = float(data.get("lr", 0.05))
                 act_hidden = data.get("act_hidden", "relu").lower()
-                _ = data.get("act_out", "").lower()  # ignorado: se decide por salidas
+                _ = data.get("act_out", "").lower() 
 
                 if Xtr and not Ytr: Xtr, Ytr = split_xy_if_needed(Xtr)
                 if Xte and not Yte: Xte, Yte = split_xy_if_needed(Xte)
@@ -390,7 +382,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(payload).encode("utf-8"))
 
-def main(port=9000):  # pediste 9000
+def main(port=9000):
     h = partial(Handler, directory=str(WEB_ROOT))
     httpd = ThreadingHTTPServer(("127.0.0.1", port), h)
     print(f"Serving {WEB_ROOT} at http://127.0.0.1:{port}{INDEX_URL}")

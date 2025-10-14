@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tarea 3 – PyTorch MLP (Fashion-MNIST)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../styles/pytorch_style.css" />
+</head>
+<body>
+  <header class="container">
+    <h1>Tarea 3 – PyTorch MLP</h1>
+    <p class="subtitle">Entrena, evalúa y visualiza modelos sobre Fashion-MNIST</p>
+  </header>
+
+  <main class="container">
+
+    <!-- 1. CREAR O CARGAR RED -->
+    <section class="card">
+      <h2>1. Crear o Cargar Red MLP</h2>
+
+      <div class="grid">
+        <div class="field">
+          <label>Capas ocultas</label>
+          <input id="nHidden" type="number" value="2" />
+        </div>
+        <div class="field">
+          <label>Tipo de red</label>
+          <select id="shape">
+            <option value="rectangular" selected>Rectangular</option>
+            <option value="interpolada">Interpolada (lineal)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>Ancho (solo rectangular)</label>
+          <input id="width" type="number" value="512" />
+        </div>
+        <div class="field">
+          <label>Dropout</label>
+          <input id="dropout" type="number" step="0.05" value="0.2" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>Épocas</label>
+          <input id="epochs" type="number" value="5" />
+        </div>
+        <div class="field">
+          <label>Learning Rate</label>
+          <input id="lr" type="number" step="0.0001" value="0.001" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>Optimizer</label>
+          <select id="optimizer">
+            <option value="adam" selected>Adam</option>
+            <option value="sgd">SGD</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Batch Size</label>
+          <input id="batch" type="number" value="128" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>¿Usar 4 clases agrupadas (Top/Bottom/Footwear/Bag)?</label>
+          <select id="fourClasses">
+            <option value="false" selected>No</option>
+            <option value="true">Sí</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="btnCreate" class="btn">Crear Red</button>
+        <button id="btnLoad" class="btn btn-secondary">Cargar .pth</button>
+      </div>
+      <div id="statusCreate" class="preview"></div>
+    </section>
+
+    <!-- 2. ENTRENAMIENTO -->
+    <section class="card">
+      <h2>2. Entrenar Modelo</h2>
+      <div class="actions">
+        <button id="btnTrain" class="btn">Entrenar</button>
+      </div>
+      <div id="trainLog" class="preview table-wrap"></div>
+    </section>
+
+    <!-- 3. VISUALIZACIONES -->
+    <section class="card">
+      <h2>3. Gráficos</h2>
+      <div class="actions" style="justify-content:center;">
+        <button id="btnLoss" class="btn">Ver Loss</button>
+        <button id="btnConf" class="btn">Ver Matriz de Confusión</button>
+      </div>
+
+      <div class="graph-grid">
+        <img id="imgLoss" alt="Loss curve" style="display:none" />
+        <img id="imgConf" alt="Confusion matrix" style="display:none" />
+      </div>
+    </section>
+
+    <!-- 4. GUARDAR -->
+    <section class="card">
+      <h2>4. Guardar</h2>
+      <button id="btnSave" class="btn">Guardar modelo (.pth)</button>
+      <div id="statusSave" class="preview"></div>
+    </section>
+
+  </main>
+
+  <footer class="container footer">
+    <small>Victor Pointud – Tarea 3 PyTorch</small>
+  </footer>
+
+  <script src="../js/pytorch_ui.js"></script>
+</body>
+</html>
