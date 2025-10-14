@@ -16,9 +16,6 @@ async function api(path, data) {
   }
 }
 
-// -------------------
-// CREATE / LOAD
-// -------------------
 async function onCreate() {
   const payload = {
     n_hidden: parseInt($("nHidden").value),
@@ -48,9 +45,6 @@ async function onLoad() {
   }
 }
 
-// -------------------
-// TRAIN / SAVE
-// -------------------
 async function onTrain() {
   $("trainLog").textContent = "Entrenando...";
   try {
@@ -70,9 +64,6 @@ async function onSave() {
   }
 }
 
-// -------------------
-// PLOTS
-// -------------------
 function showImg(id, url) {
   const img = $(id);
   img.style.display = "none";
@@ -89,7 +80,7 @@ function onConf() {
   showImg("imgConf", "/plot/conf.png");
 }
 
-// -------------------
+
 window.addEventListener("DOMContentLoaded", () => {
   $("btnCreate").addEventListener("click", onCreate);
   $("btnLoad").addEventListener("click", onLoad);

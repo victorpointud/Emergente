@@ -1,9 +1,5 @@
-# src/pytorch_server.py
 import io
-import os
-import re
 import json
-import math
 import time
 import glob
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -22,11 +18,9 @@ from torch.utils.data import DataLoader, Dataset
 
 from torchvision import datasets, transforms
 
-# -------------------------------
-# Directorios y constantes
-# -------------------------------
+
 ROOT = Path(__file__).resolve().parent
-WEB_ROOT = ROOT  # sirve todo "src"
+WEB_ROOT = ROOT  
 INDEX_URL = "/templates/pytorch.html"
 DATA_DIR = ROOT.parent / "data"
 MODELS_DIR = ROOT.parent / "models"
@@ -34,41 +28,35 @@ MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# -------------------------------
-# Estado global del servidor
-# -------------------------------
+
 STATE = {
-    "cfg": None,             # última configuración de creación
-    "model": None,           # instancia de nn.Module
+    "cfg": None,             
+    "model": None,          
     "num_classes": None,
     "class_names": None,
     "train_loader": None,
     "test_loader": None,
-    "history": [],           # list of dicts: {epoch, train_loss, test_acc}
-    "last_confusion": None,  # np.array (C,C)
+    "history": [],          
+    "last_confusion": None,  
 }
 
-# -------------------------------
-# Dataset auxiliar: 4 clases
-# -------------------------------
 FASHION10 = [
     "T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
     "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"
 ]
 
-FOUR_CLASS_NAMES = ["Top", "Bottom", "Footwear", "Bag"]  # orden estable
-# Mapeo (Fashion10 idx) -> 4 clases
+FOUR_CLASS_NAMES = ["Top", "Bottom", "Footwear", "Bag"]
 FASHION10_TO_4 = {
-    0: 0,  # T-shirt/top -> Top
-    1: 1,  # Trouser -> Bottom
-    2: 0,  # Pullover -> Top
-    3: 0,  # Dress -> Top (decisión práctica)
-    4: 0,  # Coat -> Top
-    5: 2,  # Sandal -> Footwear
-    6: 0,  # Shirt -> Top
-    7: 2,  # Sneaker -> Footwear
-    8: 3,  # Bag -> Bag
-    9: 2,  # Ankle boot -> Footwear
+    0: 0, 
+    1: 1,  
+    2: 0,  
+    3: 0,  
+    4: 0, 
+    5: 2,  
+    6: 0, 
+    7: 2,  
+    8: 3, 
+    9: 2,  
 }
 
 class MapTo4Classes(Dataset):
@@ -82,9 +70,6 @@ class MapTo4Classes(Dataset):
         img, y = self.base[idx]
         return img, FASHION10_TO_4[int(y)]
 
-# -------------------------------
-# Modelo MLP dinámico
-# -------------------------------
 class MLP(nn.Module):
     def __init__(self, input_dim, hidden_dims, num_classes, dropout=0.0):
         super().__init__()
@@ -99,13 +84,9 @@ class MLP(nn.Module):
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
-        # x: [B, 1, 28, 28]
-        x = torch.flatten(x, 1)  # [B, 784]
+        x = torch.flatten(x, 1)
         return self.net(x)
 
-# -------------------------------
-# Utilidades
-# -------------------------------
 def linspace_int(start, end, steps):
     arr = np.linspace(start, end, steps)
     return [max(16, int(round(v))) for v in arr]
@@ -115,7 +96,6 @@ def build_hidden_dims(shape, n_hidden, width, input_dim, num_classes):
         return []
     if shape == "rectangular":
         return [max(16, int(width))] * n_hidden
-    # interpolada: desde input_dim hasta num_classes en n_hidden+2 puntos
     pts = linspace_int(input_dim, max(num_classes, 8), n_hidden + 2)[1:-1]
     return pts
 
@@ -183,9 +163,6 @@ def latest_model_path():
     files = sorted(glob.glob(str(MODELS_DIR / "pytorch_mlp_*.pth")))
     return files[-1] if files else None
 
-# -------------------------------
-# Preparación de datos
-# -------------------------------
 def make_dataloaders(four_classes=False, batch_size=128):
     tfm = transforms.Compose([
         transforms.ToTensor(),
@@ -211,9 +188,6 @@ def make_dataloaders(four_classes=False, batch_size=128):
 
     return train_loader, test_loader, num_classes, class_names
 
-# -------------------------------
-# Entrenamiento / Evaluación
-# -------------------------------
 def train_one_epoch(model, loader, criterion, optimizer):
     model.train()
     running = 0.0
@@ -255,11 +229,7 @@ def evaluate(model, loader, criterion, num_classes):
     cm = compute_confusion(all_logits, all_targets, num_classes)
     return avg_loss, acc, cm
 
-# -------------------------------
-# HTTP Handler
-# -------------------------------
 class Handler(SimpleHTTPRequestHandler):
-    # GET de plots
     def do_GET(self):
         p = self.path.split("?")[0]
         if p == "/plot/loss.png":
@@ -284,7 +254,6 @@ class Handler(SimpleHTTPRequestHandler):
 
         return super().do_GET()
 
-    # POST APIs
     def do_POST(self):
         try:
             n = int(self.headers.get("Content-Length","0"))
@@ -309,7 +278,6 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
 
     def _api_create(self, data):
-        # leer parámetros
         n_hidden   = int(data.get("n_hidden", 2))
         shape      = str(data.get("shape", "rectangular")).lower()
         width      = int(data.get("width", 512))
@@ -320,15 +288,12 @@ class Handler(SimpleHTTPRequestHandler):
         batch_size = int(data.get("batch_size", 128))
         four_cls   = bool(data.get("four_classes", False))
 
-        # dataloaders
         train_loader, test_loader, num_classes, class_names = make_dataloaders(four_classes=four_cls, batch_size=batch_size)
 
-        # modelo
         input_dim = 28*28
         hidden_dims = build_hidden_dims(shape, n_hidden, width, input_dim, num_classes)
         model = MLP(input_dim, hidden_dims, num_classes, dropout=dropout).to(DEVICE)
 
-        # guardar estado
         STATE["cfg"] = {
             "n_hidden": n_hidden, "shape": shape, "width": width,
             "dropout": dropout, "epochs": epochs, "lr": lr,
@@ -362,7 +327,6 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             opt = optim.Adam(model.parameters(), lr=cfg["lr"])
 
-        # Entrenar
         E = max(1, int(cfg["epochs"]))
         STATE["history"].clear()
         for ep in range(1, E+1):
@@ -371,7 +335,6 @@ class Handler(SimpleHTTPRequestHandler):
             STATE["history"].append({"epoch": ep, "train_loss": float(tr_loss), "test_acc": float(te_acc)})
             STATE["last_confusion"] = cm
 
-        # Log HTML
         rows = []
         rows.append("<table><thead><tr><th>Epoch</th><th>Train Loss</th><th>Test Acc</th></tr></thead><tbody>")
         for h in STATE["history"]:
@@ -403,12 +366,10 @@ class Handler(SimpleHTTPRequestHandler):
         class_names = blob["class_names"]
         num_classes = blob["num_classes"]
 
-        # reconstruir dataloaders con cfg original
         train_loader, test_loader, numC, classN = make_dataloaders(
             four_classes=bool(cfg.get("four_classes", False)),
             batch_size=int(cfg.get("batch_size", 128))
         )
-        # reconstruir modelo
         input_dim = 28*28
         hidden_dims = build_hidden_dims(cfg["shape"], int(cfg["n_hidden"]), int(cfg["width"]),
                                         input_dim, num_classes)
@@ -433,9 +394,6 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(payload).encode("utf-8"))
 
-# -------------------------------
-# Main
-# -------------------------------
 def main(port=9000):
     h = partial(Handler, directory=str(WEB_ROOT))
     httpd = ThreadingHTTPServer(("127.0.0.1", port), h)

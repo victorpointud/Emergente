@@ -9,32 +9,31 @@
 <body>
   <header class="container">
     <h1>PyTorch MLP</h1>
-    <p class="subtitle">Entrena, evalúa y visualiza modelos sobre Fashion-MNIST</p>
+    <p class="subtitle">Train, evaluate, and visualize models on the Fashion-MNIST dataset</p>
   </header>
 
   <main class="container">
 
-    <!-- 1. CREAR O CARGAR RED -->
     <section class="card">
-      <h2>1. Crear o Cargar Red MLP</h2>
+      <h2>1. Create or Load MLP Network</h2>
 
       <div class="grid">
         <div class="field">
-          <label>Capas ocultas</label>
+          <label>Hidden Layers</label>
           <input id="nHidden" type="number" value="2" />
         </div>
         <div class="field">
-          <label>Tipo de red</label>
+          <label>Network Type</label>
           <select id="shape">
             <option value="rectangular" selected>Rectangular</option>
-            <option value="interpolada">Interpolada (lineal)</option>
+            <option value="interpolada">Interpolated (linear)</option>
           </select>
         </div>
       </div>
 
       <div class="grid">
         <div class="field">
-          <label>Ancho (solo rectangular)</label>
+          <label>Width (rectangular only)</label>
           <input id="width" type="number" value="512" />
         </div>
         <div class="field">
@@ -45,7 +44,7 @@
 
       <div class="grid">
         <div class="field">
-          <label>Épocas</label>
+          <label>Epochs</label>
           <input id="epochs" type="number" value="5" />
         </div>
         <div class="field">
@@ -70,36 +69,34 @@
 
       <div class="grid">
         <div class="field">
-          <label>¿Usar 4 clases agrupadas (Top/Bottom/Footwear/Bag)?</label>
+          <label>Use 4 grouped classes (Top / Bottom / Footwear / Bag)?</label>
           <select id="fourClasses">
             <option value="false" selected>No</option>
-            <option value="true">Sí</option>
+            <option value="true">Yes</option>
           </select>
         </div>
       </div>
 
       <div class="actions">
-        <button id="btnCreate" class="btn">Crear Red</button>
-        <button id="btnLoad" class="btn btn-secondary">Cargar .pth</button>
+        <button id="btnCreate" class="btn">Create Network</button>
+        <button id="btnLoad" class="btn btn-secondary">Load .pth</button>
       </div>
       <div id="statusCreate" class="preview"></div>
     </section>
 
-    <!-- 2. ENTRENAMIENTO -->
     <section class="card">
-      <h2>2. Entrenar Modelo</h2>
+      <h2>2. Train Model</h2>
       <div class="actions">
-        <button id="btnTrain" class="btn">Entrenar</button>
+        <button id="btnTrain" class="btn">Train</button>
       </div>
       <div id="trainLog" class="preview table-wrap"></div>
     </section>
 
-    <!-- 3. VISUALIZACIONES -->
     <section class="card">
-      <h2>3. Gráficos</h2>
+      <h2>3. Visualizations</h2>
       <div class="actions" style="justify-content:center;">
-        <button id="btnLoss" class="btn">Ver Loss</button>
-        <button id="btnConf" class="btn">Ver Matriz de Confusión</button>
+        <button id="btnLoss" class="btn">View Loss Curve</button>
+        <button id="btnConf" class="btn">View Confusion Matrix</button>
       </div>
 
       <div class="graph-grid">
@@ -108,10 +105,9 @@
       </div>
     </section>
 
-    <!-- 4. GUARDAR -->
     <section class="card">
-      <h2>4. Guardar</h2>
-      <button id="btnSave" class="btn">Guardar modelo (.pth)</button>
+      <h2>4. Save</h2>
+      <button id="btnSave" class="btn">Save Model (.pth)</button>
       <div id="statusSave" class="preview"></div>
     </section>
 
