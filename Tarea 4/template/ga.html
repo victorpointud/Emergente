@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Genetic Algorithm</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../static/ga_style.css" />
+</head>
+<body>
+  <header class="container">
+    <h1>Genetic Algorithm</h1>
+    <p class="subtitle">Run, visualize and compare GA over provided functions</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>1. Configuration</h2>
+
+      <div class="grid">
+        <div class="field">
+          <label for="func">Objective function</label>
+          <select id="func">
+            <option value="f1">f1(x) = sin(x)² / x</option>
+            <option value="f2">f2(x,y) = 20 + x - 10 cos(2πx) + y - 10 cos(2πy)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pop">Population size</label>
+          <input id="pop" type="number" value="30" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="iters">Max iterations</label>
+          <input id="iters" type="number" value="300" />
+        </div>
+        <div class="field">
+          <label for="threshold">Convergence threshold</label>
+          <input id="threshold" type="number" step="0.0001" value="0.001" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="mutvar">Mutation variability (range)</label>
+          <input id="mutvar" type="number" step="0.01" value="0.5" />
+        </div>
+        <div class="field">
+          <label for="cr">Crossover rate (0–1)</label>
+          <input id="cr" type="number" step="0.05" value="0.9" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="mr">Mutation rate (0–1)</label>
+          <input id="mr" type="number" step="0.01" value="0.2" />
+        </div>
+        <div class="field">
+          <label for="bounds">Bounds (min,max)</label>
+          <input id="bounds" type="text" value="-10,10" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="btnRun" class="btn">Run GA</button>
+        <button id="btnHistory" class="btn btn-secondary">Show History</button>
+        <button id="btnSurface" class="btn btn-secondary">Show Function Plot</button>
+      </div>
+
+      <div id="status" class="preview"></div>
+    </section>
+
+    <section class="card">
+      <h2>2. Results</h2>
+      <div id="bestBox" class="metrics">
+        <div class="metric"><div class="label">Best vars</div><div id="bestVars" class="value">—</div></div>
+        <div class="metric"><div class="label">Best fitness</div><div id="bestFit" class="value">—</div></div>
+        <div class="metric"><div class="label">Iterations</div><div id="bestIters" class="value">—</div></div>
+      </div>
+
+      <div class="preview table-wrap" style="margin-top:14px">
+        <div id="historyTable"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. Visualizations</h2>
+      <p class="subtitle">History (max/median/min) and function plot (curve/contour)</p>
+      <div class="graph-grid">
+        <img id="imgHistory" alt="history" style="display:none" />
+        <img id="imgSurface" alt="function plot" style="display:none" />
+      </div>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    <small>Tarea 4 - Victor Pointud</small>
+  </footer>
+
+  <script src="../static/ga_script.js"></script>
+</body>
+</html>
