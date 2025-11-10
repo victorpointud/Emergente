@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>SimCity</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+
+  <header class="container">
+    <h1>SimCity</h1>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Table</h2>
+
+      <div class="preview" id="screen">
+        <pre id="grid">Uploading...</pre>
+      </div>
+
+      <div class="stack">
+        <div class="field">
+          <label for="cmd">Command</label>
+          <input id="cmd" type="text" placeholder="r C4 | c D5 | i F7 | a C7 P | a F4 9">
+        </div>
+        <div class="actions two">
+          <button id="send" class="btn">Send</button>
+          <button id="tick" class="btn btn-secondary">Tick (Enter)</button>
+        </div>
+
+        <div class="field">
+          <label for="saveName">Save Game</label>
+          <input id="saveName" type="text" placeholder="file_name">
+          <div class="actions one">
+            <button id="saveBtn" class="btn">Save</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="loadName">Upload Game</label>
+          <input id="loadName" type="text" placeholder="file_name">
+          <div class="actions one">
+            <button id="loadBtn" class="btn btn-secondary">Upload</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="msg" class="subtitle" style="margin-top:10px;"></div>
+      <p class="help subtitle" style="margin-top:6px">
+        Commands: <b>r|c|i &lt;cell&gt;</b>, <b>a &lt;start&gt; &lt;end&gt;</b>. Enter without a command = tick.
+      </p>
+    </section>
+  </main>
+
+  <footer class="container">
+    <small>Tarea 5 – Victor Pointud</small>
+  </footer>
+
+  <script src="{{ url_for('static', filename='client.js') }}"></script>
+</body>
+</html>
