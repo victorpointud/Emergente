@@ -7,8 +7,7 @@ app = Flask(__name__)
 SAVE_DIR = Path("saves")
 SAVE_DIR.mkdir(exist_ok=True)
 
-city = City()  # arranca en blanco
-
+city = City()
 @app.route("/")
 def index():
     return render_template("index.html")
